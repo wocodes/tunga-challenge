@@ -23,7 +23,7 @@
     <body class="antialiased">
 
         <div>
-            <form name="upload_file" enctype="multipart/form-data" method="POST">
+            <form action="/upload" enctype="multipart/form-data" method="POST">
                 {{ csrf_field() }}
 
                 <input type="file" name="file" required>

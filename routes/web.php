@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\UploadController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -19,4 +19,4 @@ Route::get('/', function () {
 });
 
 
-Route::post('/upload', [UploadController::class, 'importData'])->name('upload');
+Route::post('/upload', [UserController::class, 'importData'])->name('upload');
