@@ -1,7 +1,7 @@
 ### Large Data Set Upload: Tunga Challenge
 
 ### Installation Steps 
-####(Run the following commands from bash (terminal):
+#### (Run the following commands from bash (terminal):
 
 - Pull project from repo using ```git clone https://github.com/wocodes/tunga-challenge.git```
 - Run ```composer install```
