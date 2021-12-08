@@ -23,3 +23,6 @@ On the homepage,
 - Select file to import and Click 'Upload'
 - The upload will automatically start in the background and insert records where necessary.
 - Alternatively, this upload process checks every minutes to see if there are pending/incomplete uploads to be done and performs them just incase a previous process was interrupted.
+---
+### Test
+Also added to the solution is a basic feature test that covers the core functionality of the app which is data import. 
