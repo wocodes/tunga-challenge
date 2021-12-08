@@ -22,4 +22,4 @@
 On the homepage, 
 - Select file to import and Click 'Upload'
 - The upload will automatically start in the background and insert records where necessary.
-- Alternatively, this upload process checks every minutes to see if there are pending uploads to be done and performs them.
+- Alternatively, this upload process checks every minutes to see if there are pending/incomplete uploads to be done and performs them just incase a previous process was interrupted.
