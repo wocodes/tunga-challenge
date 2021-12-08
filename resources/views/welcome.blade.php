@@ -23,6 +23,10 @@
     <body class="antialiased">
 
         <div>
+            @if(isset($status))
+                {{ $status }}
+            @endif
+
             <form action="/" enctype="multipart/form-data" method="POST">
                 {{ csrf_field() }}
 

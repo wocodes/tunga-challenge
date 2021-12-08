@@ -23,6 +23,8 @@ class UserRepository
             }
 
             ProcessImportJob::dispatch();
+
+            return view('welcome', ['status' => 'Uploading Data...']);
         } catch (\Exception $exception) {
             dd($exception->getMessage());
         }

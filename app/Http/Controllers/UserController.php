@@ -27,7 +27,7 @@ class UserController extends Controller
     {
         // validate file
         $request->validate([
-           'file' => 'file|mimes:json,txt,csv,xml',
+           'file' => 'nullable|file|mimes:json,txt,csv,xml',
         ]);
 
 
