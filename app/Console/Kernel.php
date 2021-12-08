@@ -17,7 +17,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         // start the queue worker in order to process the jobs
-        $schedule->command('queue:work --stop-when-empty')->everyMinute()->withoutOverlapping();
+        $schedule->command('queue:work --timeout=900 --tries=3 --stop-when-empty')->everyMinute()->withoutOverlapping();
 
         // start processing the jobs without overlapping
         $schedule->job(new ProcessImportJob)->everyMinute()->withoutOverlapping();

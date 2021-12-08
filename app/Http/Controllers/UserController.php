@@ -27,8 +27,9 @@ class UserController extends Controller
     {
         // validate file
         $request->validate([
-           'file' => 'file|mimes:json,text',
+           'file' => 'file|mimes:json,txt,csv,xml',
         ]);
+
 
         $this->userRepository->processImportRequest($request);
     }

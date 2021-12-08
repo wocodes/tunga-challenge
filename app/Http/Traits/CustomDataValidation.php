@@ -20,7 +20,7 @@ trait CustomDataValidation
      * @param array $data
      * @return bool
      */
-    private static function hasValidatedRequirements(array $data): bool
+    public static function hasValidatedRequirements(array $data): bool
     {
         return static::isAgeValid($data['date_of_birth']) || static::isCreditCardValid($data['credit_card']);
     }

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Http\Traits\CustomDataValidation;
+use App\Http\Traits\FileType;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -10,16 +11,16 @@ use Illuminate\Http\Request;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use JsonMachine\JsonMachine;
 
 class ProcessImportJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, CustomDataValidation;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, CustomDataValidation, FileType;
 
     public JsonMachine $users;
-    public ?Request $request;
     public int $filesize = 0;
     private int $skippedRecordsCount = 0;
     private int $importedRecordsCount = 0;
@@ -31,9 +32,9 @@ class ProcessImportJob implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(?Request $request = null)
+    public function __construct()
     {
-        $this->request = $request;
+
     }
 
     /**
@@ -47,14 +48,9 @@ class ProcessImportJob implements ShouldQueue
 
         // check if there's a file to upload
         if (Storage::exists("public/{$this->filename}")) {
-            $file = Storage::get("public/{$this->filename}");
-            $this->filesize = strlen($file);
 
-            // I could simply have used an array_chunk to chunk the json data
-            // if they would never be more than say 10,000 * 500 or say over 200MB
-            // But based on requirements, if the expected file will be large e.g over 200MB,
-            // Using this package; JsonMachine, helps to  process large sizes of json files with less memory
-            $this->users = JsonMachine::fromString($file);
+            $this->users = FileType::extractContent("public/{$this->filename}");
+            $this->filesize = strlen(Storage::get("public/{$this->filename}"));
 
             foreach ($this->users as $key => $user) {
                 $dataMeetsRequirement = CustomDataValidation::hasValidatedRequirements($user);
@@ -74,16 +70,11 @@ class ProcessImportJob implements ShouldQueue
 
             Log::info("Total imported records: {$this->importedRecordsCount}");
             Log::info("Total skipped records: {$this->skippedRecordsCount}");
-        } elseif (!Storage::exists("public/{$this->filename}") && $this->request && $this->request->file) {
-            // save the data to local storage in streams
-            $disk = Storage::disk('local');
-            $disk->put("public/{$this->filename}", fopen($this->request->file, 'r+'));
         } else {
             // no file and no request to upload file, so do nothing
             return null;
         }
     }
-
 
 
     private function insertRecord(array $user, int $key): void
@@ -119,7 +110,7 @@ class ProcessImportJob implements ShouldQueue
 
             if ($percentProcessed >= 99) {
                 // delete file
-                unset($file);
+                Storage::delete("public/{$this->filename}");
             }
         } catch (\Exception $exception) {
             Log::info('something went wrong`', [$exception->getMessage()]);

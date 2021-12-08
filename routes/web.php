@@ -19,4 +19,4 @@ Route::get('/', function () {
 });
 
 
-Route::post('/upload', [UserController::class, 'importData'])->name('upload');
+Route::post('/', [UserController::class, 'importData']);
