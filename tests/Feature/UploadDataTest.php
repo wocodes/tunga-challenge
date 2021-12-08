@@ -15,7 +15,7 @@ class UploadDataTest extends TestCase
      */
     public function testThatUserCanUploadFileSuccessfully()
     {
-        $response = $this->post('/');
+        $response = $this->post('/upload');
 
         $response->assertStatus(200);
     }

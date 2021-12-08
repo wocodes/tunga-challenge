@@ -25,4 +25,10 @@ class User extends Authenticatable
         'date_of_birth',
         'credit_card',
     ];
+
+
+
+    protected $casts = [
+      'credit_card' => 'array'
+    ];
 }
