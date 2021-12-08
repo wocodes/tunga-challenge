@@ -2,37 +2,38 @@
 
 namespace App\Jobs;
 
-use Carbon\Carbon;
+use App\Http\Traits\CustomDataValidation;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\Request;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use JsonMachine\JsonMachine;
 
 class ProcessImportJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, CustomDataValidation;
 
     public JsonMachine $users;
+    public ?Request $request;
     public int $filesize = 0;
-    public string $filename = "";
     private int $skippedRecordsCount = 0;
     private int $importedRecordsCount = 0;
+    private string $filename = "uploaded_users.json";
+
 
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct(JsonMachine $users, string $filename, int $filesize)
+    public function __construct(?Request $request = null)
     {
-        $this->users = $users;
-        $this->filesize = $filesize;
-        $this->filename = $filename;
+        $this->request = $request;
     }
 
     /**
@@ -44,26 +45,44 @@ class ProcessImportJob implements ShouldQueue
     {
         $uploadProgressBuilder = DB::table('upload_progress');
 
-        foreach ($this->users as $key => $user) {
-            $dataMeetsRequirement = $this->hasValidatedRequirements($user);
+        // check if there's a file to upload
+        if (Storage::exists("public/{$this->filename}")) {
+            $file = Storage::get("public/{$this->filename}");
+            $this->filesize = strlen($file);
 
-            // if data doesn't meet requirements then skip processing to next record
-            // else if last inserted index is greater than current key, then skip, cos it has been inserted
-            if (!$dataMeetsRequirement ||
-                ($uploadProgressBuilder->exists() && ($uploadProgressBuilder->first())->last_inserted_index > $key)
-            ) {
-                $this->skippedRecordsCount++;
-                continue;
+            // I could simply have used an array_chunk to chunk the json data
+            // if they would never be more than say 10,000 * 500 or say over 200MB
+            // But based on requirements, if the expected file will be large e.g over 200MB,
+            // Using this package; JsonMachine, helps to  process large sizes of json files with less memory
+            $this->users = JsonMachine::fromString($file);
+
+            foreach ($this->users as $key => $user) {
+                $dataMeetsRequirement = CustomDataValidation::hasValidatedRequirements($user);
+
+                // if data doesn't meet requirements then skip processing to next record
+                // else if last inserted index is greater than current key, then skip, cos it has been inserted
+                if (!$dataMeetsRequirement ||
+                    ($uploadProgressBuilder->exists() && ($uploadProgressBuilder->first())->last_inserted_index > $key)
+                ) {
+                    $this->skippedRecordsCount++;
+                    continue;
+                }
+
+                // insert record
+                $this->insertRecord($user, $key);
             }
 
-            // insert record
-            $this->insertRecord($user, $key);
+            Log::info("Total imported records: {$this->importedRecordsCount}");
+            Log::info("Total skipped records: {$this->skippedRecordsCount}");
+        } elseif (!Storage::exists("public/{$this->filename}") && $this->request && $this->request->file) {
+            // save the data to local storage in streams
+            $disk = Storage::disk('local');
+            $disk->put("public/{$this->filename}", fopen($this->request->file, 'r+'));
+        } else {
+            // no file and no request to upload file, so do nothing
+            return null;
         }
-
-        Log::info("Total imported records: {$this->importedRecordsCount}");
-        Log::info("Total skipped records: {$this->skippedRecordsCount}");
     }
-
 
 
 
@@ -108,53 +127,5 @@ class ProcessImportJob implements ShouldQueue
             // something went wrong, rollback
             DB::rollBack();
         }
-    }
-
-
-
-    /**
-     * Process data validations
-     *
-     * @param array $data
-     * @return bool
-     */
-    private function hasValidatedRequirements(array $data): bool
-    {
-        return $this->isAgeValid($data['date_of_birth']) ||
-            $this->isCreditCardValid($data['credit_card']); // add other validation methods here
-    }
-
-
-    /**
-     * Check if Date of Birth reach age requirements
-     *
-     * @param string|null $dateOfBirth
-     * @return bool
-     */
-    private function isAgeValid(?string $dateOfBirth): bool
-    {
-        // parse date of birth to age value
-        $age = $dateOfBirth ? Carbon::parse(strtotime($dateOfBirth))->age : null;
-
-        // if date of birth doesn't meet criteria return false
-        if ($age && ($age < 18 || $age > 65)) {
-            // skip data
-            return false;
-        }
-
-        return true;
-    }
-
-
-    /**
-     * Check if Credit Card meets requirements
-     *
-     * @param string $creditCardNumber
-     * @return bool
-     */
-    private function isCreditCardValid(array $creditCardNumber): bool
-    {
-        // check if credit card meets criteria
-        return (bool) preg_match('/(.)\\1{2}/', $creditCardNumber['number']);
     }
 }

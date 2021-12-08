@@ -31,6 +31,5 @@ class UserController extends Controller
         ]);
 
         $this->userRepository->processImportRequest($request);
-
     }
 }
