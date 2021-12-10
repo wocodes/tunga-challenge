@@ -30,7 +30,7 @@
             <form action="/" enctype="multipart/form-data" method="POST">
                 {{ csrf_field() }}
 
-                <input type="file" name="data" required>
+                <input type="file" name="file" required>
                 <input type="submit" value="Upload" />
             </form>
         </div>

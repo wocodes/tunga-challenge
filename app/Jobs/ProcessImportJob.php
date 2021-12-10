@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Http\Traits\CustomDataValidation;
-use App\Http\Traits\FileType;
+use App\Http\Helpers\CustomDataValidation;
+use App\Http\Helpers\FileType;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -18,14 +18,13 @@ use JsonMachine\JsonMachine;
 
 class ProcessImportJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, CustomDataValidation, FileType;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, FileType;
 
     public JsonMachine $users;
     public int $filesize = 0;
     private int $skippedRecordsCount = 0;
     private int $importedRecordsCount = 0;
     private string $filename = "uploaded_users.json";
-
 
     /**
      * Create a new job instance.
@@ -53,7 +52,7 @@ class ProcessImportJob implements ShouldQueue
             $this->filesize = strlen(Storage::get("public/{$this->filename}"));
 
             foreach ($this->users as $key => $user) {
-                $dataMeetsRequirement = CustomDataValidation::hasValidatedRequirements($user);
+                $dataMeetsRequirement = (new CustomDataValidation($user))->checkRequirements()->handle();
 
                 // if data doesn't meet requirements then skip processing to next record
                 // else if last inserted index is greater than current key, then skip, cos it has been inserted
@@ -61,6 +60,8 @@ class ProcessImportJob implements ShouldQueue
                     ($uploadProgressBuilder->exists() && ($uploadProgressBuilder->first())->last_inserted_index > $key)
                 ) {
                     $this->skippedRecordsCount++;
+
+                    $this->updateImportProgress($key);
                     continue;
                 }
 
@@ -95,14 +96,10 @@ class ProcessImportJob implements ShouldQueue
 
             DB::commit();
 
-            // update last inserted index value
-            DB::table('upload_progress')->updateOrInsert(
-                ['filename' => $this->filename],
-                ['last_inserted_index' => $key]
-            );
-
             // update importedRecords count
             $this->importedRecordsCount++;
+
+            $this->updateImportProgress($key);
 
             // file upload is complete, then delete file
             $percentProcessed = intval($this->users->getPosition() / $this->filesize * 100);
@@ -114,9 +111,15 @@ class ProcessImportJob implements ShouldQueue
             }
         } catch (\Exception $exception) {
             Log::info('something went wrong`', [$exception->getMessage()]);
-
-            // something went wrong, rollback
-            DB::rollBack();
         }
+    }
+
+    private function updateImportProgress($key)
+    {
+        // update last inserted index value
+        DB::table('upload_progress')->updateOrInsert(
+            ['filename' => $this->filename],
+            ['last_inserted_index' => $key]
+        );
     }
 }
