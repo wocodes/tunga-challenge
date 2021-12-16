@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Http\Helpers;
+namespace App\Actions;
 
 use Carbon\Carbon;
+use Lorisleiva\Actions\Concerns\AsAction;
 
 /**
- * Custom Data Validation Trait
+ * Custom Data Validation
  *
  * This class is dedicated towards validation adding any form of custom data validation necessary for the import
  *
@@ -13,13 +14,14 @@ use Carbon\Carbon;
  */
 class CustomDataValidation
 {
+    use AsAction;
+
     public array $data;
 
     /**
      * @var false
      */
     private bool $hasRequirements;
-
 
     public function __construct(array $data)
     {

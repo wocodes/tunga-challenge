@@ -2,23 +2,21 @@
 
 namespace App\Jobs;
 
-use App\Http\Helpers\CustomDataValidation;
-use App\Http\Helpers\FileType;
+use App\Actions\CustomDataValidation;
+use App\Actions\ReadFileContent;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Http\Request;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use JsonMachine\JsonMachine;
 
 class ProcessImportJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, FileType;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public JsonMachine $users;
     public int $filesize = 0;
@@ -48,7 +46,7 @@ class ProcessImportJob implements ShouldQueue
         // check if there's a file to upload
         if (Storage::exists("public/{$this->filename}")) {
 
-            $this->users = FileType::extractContent("public/{$this->filename}");
+            $this->users = ReadFileContent::run("public/{$this->filename}");
             $this->filesize = strlen(Storage::get("public/{$this->filename}"));
 
             foreach ($this->users as $key => $user) {
@@ -108,9 +106,12 @@ class ProcessImportJob implements ShouldQueue
             if ($percentProcessed >= 99) {
                 // delete file
                 Storage::delete("public/{$this->filename}");
+
+                // delete tracking record
+                DB::table('upload_progress')->delete(1);
             }
         } catch (\Exception $exception) {
-            Log::info('something went wrong`', [$exception->getMessage()]);
+            Log::error('something went wrong`', [$exception->getMessage()]);
         }
     }
 
